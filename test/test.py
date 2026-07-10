@@ -9,11 +9,19 @@ the CPU's architectural state - registers, flags, PC - after each
 instruction completes. Every instruction takes exactly 4 clock cycles
 (FETCH, DECODE, EXECUTE, WRITEBACK), so instruction boundaries fall on
 multiples of 4 clock edges after reset is released.
+
+Only the primary TinyTapeout I/O pins (clk, rst_n, ena, ui_in, uo_out,
+uio_in, uio_out) are used - no internal hierarchy is peeked - so this
+testbench runs unmodified against both the RTL (`make`) and the hardened
+gate-level netlist (`GATES=yes make`), where internal signal/module names
+no longer exist. Register values are read out through the debug-readback
+feature (ui_in[7]=1, ui_in[1:0]=register index -> uo_out) built into
+project.v for exactly this purpose.
 """
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, Timer
 
 CYCLES_PER_INSTRUCTION = 4
 
@@ -28,9 +36,18 @@ async def reset_dut(dut):
     await ClockCycles(dut.clk, 1)
 
 
-def reg(dut, index):
-    """Read register R<index> straight out of the register file."""
-    return int(dut.user_project.cpu.u_regfile.regs[index].value)
+async def read_reg(dut, index):
+    """Read register R<index> via the debug-readback mux on uo_out.
+
+    ui_in only feeds the output mux (see project.v), not the CPU's control
+    logic, so toggling it never disturbs the running program - it is safe
+    to call at any point in the instruction cycle.
+    """
+    dut.ui_in.value = 0x80 | index
+    await Timer(1, unit="ns")
+    value = int(dut.uo_out.value)
+    dut.ui_in.value = 0
+    return value
 
 
 def flags(dut):
@@ -57,10 +74,10 @@ async def test_reset_state(dut):
 
     await reset_dut(dut)
 
-    assert reg(dut, 0) == 0
-    assert reg(dut, 1) == 0
-    assert reg(dut, 2) == 0
-    assert reg(dut, 3) == 0
+    assert await read_reg(dut, 0) == 0
+    assert await read_reg(dut, 1) == 0
+    assert await read_reg(dut, 2) == 0
+    assert await read_reg(dut, 3) == 0
     assert flags(dut) == (0, 0, 0, 0)
     assert pc_low_nibble(dut) == 0
 
@@ -81,37 +98,37 @@ async def test_demo_program_one_pass(dut):
 
     # 0: XOR R0,R0     -> R0 = 0
     await step()
-    assert reg(dut, 0) == 0
+    assert await read_reg(dut, 0) == 0
 
     # 1: LOAD R0,[R0]  -> R0 = RAM[0] = 10
     await step()
-    assert reg(dut, 0) == 10
+    assert await read_reg(dut, 0) == 10
 
     # 2: XOR R1,R1     -> R1 = 0
     await step()
-    assert reg(dut, 1) == 0
+    assert await read_reg(dut, 1) == 0
 
     # 3: INC R1        -> R1 = 1
     await step()
-    assert reg(dut, 1) == 1
+    assert await read_reg(dut, 1) == 1
 
     # 4: LOAD R1,[R1]  -> R1 = RAM[1] = 3
     await step()
-    assert reg(dut, 1) == 3
+    assert await read_reg(dut, 1) == 3
 
     # 5: MOV R2,R0     -> R2 = 10
     await step()
-    assert reg(dut, 2) == 10
+    assert await read_reg(dut, 2) == 10
 
     # 6: ADD R2,R1     -> R2 = 13
     await step()
-    assert reg(dut, 2) == 13
+    assert await read_reg(dut, 2) == 13
     z, _, n, _ = flags(dut)
     assert (z, n) == (0, 0)
 
     # 7: CMP R2,R1     -> flags only, 13 vs 3 -> not equal, R2 unchanged
     await step()
-    assert reg(dut, 2) == 13
+    assert await read_reg(dut, 2) == 13
     z, _, n, _ = flags(dut)
     assert z == 0
 
@@ -121,7 +138,7 @@ async def test_demo_program_one_pass(dut):
 
     # 9: SUB R2,R1     -> R2 = 13 - 3 = 10
     await step()
-    assert reg(dut, 2) == 10
+    assert await read_reg(dut, 2) == 10
 
     # 10: CMP R2,R0    -> 10 vs 10 -> equal
     await step()
@@ -131,12 +148,12 @@ async def test_demo_program_one_pass(dut):
     # 11: JZ R3        -> taken (Z=1), PC <= R3 = 0 (loops back to start)
     await step()
     assert pc_low_nibble(dut) == 0
-    assert reg(dut, 3) == 0
+    assert await read_reg(dut, 3) == 0
 
     # Register/flag/PC state after one full pass through the program.
-    assert reg(dut, 0) == 10
-    assert reg(dut, 1) == 3
-    assert reg(dut, 2) == 10
+    assert await read_reg(dut, 0) == 10
+    assert await read_reg(dut, 1) == 3
+    assert await read_reg(dut, 2) == 10
     assert flags(dut) == (1, 0, 0, 0)
 
 
@@ -151,12 +168,21 @@ async def test_demo_program_loops_forever(dut):
 
     await reset_dut(dut)
 
+    async def snapshot():
+        return (
+            await read_reg(dut, 0),
+            await read_reg(dut, 1),
+            await read_reg(dut, 2),
+            await read_reg(dut, 3),
+            flags(dut),
+        )
+
     # Run two full 12-instruction passes (48 + 48 cycles).
     await ClockCycles(dut.clk, CYCLES_PER_INSTRUCTION * 12)
-    first_pass = (reg(dut, 0), reg(dut, 1), reg(dut, 2), reg(dut, 3), flags(dut))
+    first_pass = await snapshot()
 
     await ClockCycles(dut.clk, CYCLES_PER_INSTRUCTION * 12)
-    second_pass = (reg(dut, 0), reg(dut, 1), reg(dut, 2), reg(dut, 3), flags(dut))
+    second_pass = await snapshot()
 
     assert first_pass == second_pass
     assert first_pass == (10, 3, 10, 0, (1, 0, 0, 0))
@@ -176,9 +202,7 @@ async def test_debug_register_readback(dut):
     # Run one full pass so registers hold known non-zero values.
     await ClockCycles(dut.clk, CYCLES_PER_INSTRUCTION * 12)
 
-    expected = {0: reg(dut, 0), 1: reg(dut, 1), 2: reg(dut, 2), 3: reg(dut, 3)}
-
-    for sel, value in expected.items():
-        dut.ui_in.value = 0x80 | sel
-        await ClockCycles(dut.clk, 1)
-        assert int(dut.uo_out.value) == value
+    assert await read_reg(dut, 0) == 10
+    assert await read_reg(dut, 1) == 3
+    assert await read_reg(dut, 2) == 10
+    assert await read_reg(dut, 3) == 0
