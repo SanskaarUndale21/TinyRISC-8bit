@@ -225,3 +225,11 @@ See `test/test.py` for the full implementation. Structure:
 
 Run it with `cd test && make` (uses Icarus Verilog + cocotb, see
 `docs/TESTING.md` for full environment setup).
+
+The demo program only runs 8 of the 16 opcodes. `test/unit/` supplements
+this with an exhaustive standalone ALU test (all 16 opcodes plus
+zero/carry/borrow/signed-overflow boundary cases) and a CPU-level test of
+the remaining opcodes (AND, OR, SHL, SHR, DEC, JMP, STORE, NOP) against a
+scratch program - run with `bash test/unit/run.sh`. See
+`test/unit/README.md` for why these are kept separate from the official
+flow rather than folded into `test/test.py`.

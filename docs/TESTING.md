@@ -46,6 +46,19 @@ Under the hood this just runs `cd test && make`, which:
 This is exactly what `.github/workflows/test.yaml` runs in CI on every
 push.
 
+The shipped demo program only runs 8 of the 16 opcodes (XOR, LOAD, INC,
+MOV, ADD, CMP, SUB, JZ) - `test/unit/` has supplementary, local-only
+checks for the rest (AND, OR, SHL, SHR, DEC, JMP, STORE, NOP) plus an
+exhaustive standalone ALU test with boundary cases (overflow/carry/borrow
+at the 0x7F/0x80 wrap points). Run them with:
+
+```sh
+bash test/unit/run.sh
+```
+
+See `test/unit/README.md` for why these are kept separate from the
+official cocotb flow instead of folded into `test/test.py`.
+
 > **Note on Python versions:** cocotb 2.0.1 currently declares a maximum
 > supported Python version. If your Ubuntu ships a newer Python than that
 > (e.g. 3.14), `sys/setup_ubuntu.sh` automatically retries the install with

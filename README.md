@@ -31,6 +31,7 @@ forever on the chip with no external stimulus required.
 │       ├── control_fsm.v
 │       └── cpu_top.v
 ├── test/                  # cocotb testbench (Icarus Verilog)
+│   └── unit/               # supplementary local-only opcode/ALU coverage (see test/unit/README.md)
 ├── sys/                   # Ubuntu/WSL environment setup + RTL-to-GDS flow scripts
 ├── gds/                   # place to copy exported GDS/reports from a local hardening run
 ├── docs/                  # datasheet + architecture + testing docs
