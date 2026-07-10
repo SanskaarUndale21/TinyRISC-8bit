@@ -1,0 +1,6 @@
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.v  text eol=lf
+*.vh text eol=lf
+*.py text eol=lf
