@@ -239,4 +239,12 @@ module cpu_top (
   assign negative_flag_out = negative_flag;
   assign overflow_flag_out = overflow_flag;
 
+  // is_nop/is_add/is_sub/is_and/is_or/is_xor/is_mov/is_cmp/is_shl/is_shr/
+  // is_inc/is_dec are decoded for completeness and used by nothing here
+  // (the ALU takes the raw opcode directly, and only is_store/is_load/
+  // is_jmp/is_jz drive datapath muxes) - bundle them so lint doesn't flag
+  // them as unused.
+  wire _unused = &{is_nop, is_add, is_sub, is_and, is_or, is_xor, is_mov,
+                    is_cmp, is_shl, is_shr, is_inc, is_dec, 1'b0};
+
 endmodule
