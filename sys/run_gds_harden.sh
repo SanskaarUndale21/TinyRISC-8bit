@@ -25,7 +25,7 @@ cd "$(dirname "$0")/.."
 export PDK_ROOT="$HOME/.ttsetup/pdk"
 export PDK="ihp-sg13g2"
 
-VENV_DIR="sys/venv"
+VENV_DIR="sys/venv-gds"
 TT_SUPPORT_DIR="sys/tt-support-tools"
 
 if [ ! -d "$TT_SUPPORT_DIR" ]; then

@@ -125,7 +125,7 @@ antenna, DRC/LVS summaries, etc.) before it's eligible for submission.
 Locally, once you have a successful hardening run:
 
 ```sh
-. sys/venv/bin/activate
+. sys/venv-gds/bin/activate
 python sys/tt-support-tools/tt_tool.py --print-warnings
 python sys/tt-support-tools/tt_tool.py --create-yaml   # regenerate info.yaml-derived files if needed
 ```
