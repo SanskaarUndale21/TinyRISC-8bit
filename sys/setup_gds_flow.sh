@@ -29,6 +29,10 @@ else
   git -C "$TT_SUPPORT_DIR" pull
 fi
 
+echo "==> Upgrading pip (an old pip can fail to find wheels for newer"
+echo "    pinned deps like contourpy, e.g. 'No matching distribution found')..."
+"$VENV_DIR/bin/pip" install --upgrade pip
+
 echo "==> Installing tt-support-tools + LibreLane into $VENV_DIR ..."
 "$VENV_DIR/bin/pip" install -r "$TT_SUPPORT_DIR/requirements.txt"
 "$VENV_DIR/bin/pip" install librelane==3.0.0.dev44

@@ -18,8 +18,12 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-export PDK_ROOT="${PDK_ROOT:-$HOME/.ttsetup/pdk}"
-export PDK="${PDK:-ihp-sg13g2}"
+# Force these rather than defaulting-if-unset: this project targets the
+# IHP shuttle (ihp-sg13g2), and if your shell already has PDK/PDK_ROOT set
+# from other OpenLane/sky130 work, a mere ${VAR:-default} would silently
+# pick that up and harden against the wrong PDK entirely.
+export PDK_ROOT="$HOME/.ttsetup/pdk"
+export PDK="ihp-sg13g2"
 
 VENV_DIR="sys/venv"
 TT_SUPPORT_DIR="sys/tt-support-tools"
